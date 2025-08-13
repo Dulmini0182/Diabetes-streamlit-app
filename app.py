@@ -6,8 +6,8 @@ import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 
@@ -112,27 +112,51 @@ elif choice == "Model Training":
     st.info("Best model saved as model.pkl")
 
 # =====================
-# Prediction
+# Prediction (New UI)
 # =====================
 elif choice == "Prediction":
     st.title("🔍 Diabetes Prediction")
+    st.write("Fill in the details below to predict diabetes risk.")
 
-    # Load model
-    with open("model.pkl", "rb") as f:
-        model = pickle.load(f)
+    # Load saved best model
+    try:
+        with open("model.pkl", "rb") as f:
+            model = pickle.load(f)
+    except FileNotFoundError:
+        st.error("⚠️ No trained model found. Please go to 'Model Training' first.")
+        st.stop()
 
-    st.write("Enter patient details:")
+    # Organize input fields into two columns
+    col1, col2 = st.columns(2)
 
     input_data = {}
-    for col in df.columns:
+    for i, col in enumerate(df.columns):
         if col != "Outcome":
-            val = st.number_input(f"{col}", float(df[col].min()), float(df[col].max()), float(df[col].mean()))
+            if i % 2 == 0:
+                val = col1.number_input(
+                    f"{col}",
+                    float(df[col].min()), 
+                    float(df[col].max()), 
+                    float(df[col].mean())
+                )
+            else:
+                val = col2.number_input(
+                    f"{col}",
+                    float(df[col].min()), 
+                    float(df[col].max()), 
+                    float(df[col].mean())
+                )
             input_data[col] = val
 
-    if st.button("Predict"):
+    st.markdown("---")
+    predict_btn = st.button("🚀 Predict Now", use_container_width=True)
+
+    if predict_btn:
         features = np.array(list(input_data.values())).reshape(1, -1)
         prediction = model.predict(features)[0]
-        prob = model.predict_proba(features)[0][prediction]
+        prob = model.predict_proba(features)[0][prediction] * 100
 
-        st.write("Prediction:", "Diabetic" if prediction == 1 else "Non-Diabetic")
-        st.write(f"Confidence: {prob*100:.2f}%")
+        if prediction == 1:
+            st.error(f"⚠️ **Prediction:** Diabetic\n\n**Confidence:** {prob:.2f}%")
+        else:
+            st.success(f"✅ **Prediction:** Non-Diabetic\n\n**Confidence:** {prob:.2f}%")
